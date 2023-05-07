@@ -6,7 +6,7 @@ class AppRouter {
   static final GoRouter goRouter = GoRouter(routes: [
     GoRoute(
       path: RouteNames.home,
-      builder: (context, state) => const HomePage(),
+      builder: (context, state) => HomePage(),
     ),
   ]);
 }
