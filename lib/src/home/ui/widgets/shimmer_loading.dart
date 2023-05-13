@@ -15,8 +15,8 @@ class ShimmerLoading extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 48.0,
-              height: 48.0,
+              width: 44.0,
+              height: 44.0,
               color: Colors.white,
             ),
             const Padding(

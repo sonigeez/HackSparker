@@ -1,67 +1,87 @@
+import 'dart:developer';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hacksparker/src/home/bloc/home_bloc.dart';
 import 'package:hacksparker/src/home/models/story.dart';
 import 'package:hacksparker/src/home/ui/widgets/shimmer_loading.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   HomePageState createState() => HomePageState();
 }
 
 class HomePageState extends State<HomePage> {
-  final StoryBloc _storyBloc = StoryBloc();
+  PagingController<int, Story> pagingController =
+      PagingController(firstPageKey: 0);
+  late final HomeBloc _homeBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _homeBloc = context.read<HomeBloc>();
+    _homeBloc.add(FetchAllStoriesEvent());
+    pagingController.addPageRequestListener((pageKey) {
+      _homeBloc.add(FetchPageEvent());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Hacker News Top Stories')),
-      body: FutureBuilder(
-        future: _storyBloc.init(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return PagedListView<int, Story>(
-              pagingController: _storyBloc.pagingController,
-              builderDelegate: PagedChildBuilderDelegate<Story>(
-                itemBuilder: (context, story, index) => ListTile(
-                  leading: CachedNetworkImage(
-                      imageUrl:
-                          "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Y_Combinator_logo.svg/640px-Y_Combinator_logo.svg.png"),
-                  title: Text(story.title),
-                  subtitle: Text('Score: ${story.score}'),
-                  onTap: () {
-                    // Handle on-tap to open the story URL, for example, using the url_launcher package
-                  },
-                ),
-                firstPageErrorIndicatorBuilder: (context) => const Center(
-                  child: Text('Failed to load top stories. Please try again.'),
-                ),
-                newPageErrorIndicatorBuilder: (context) => const Center(
-                  child: Text('Failed to load more stories. Please try again.'),
-                ),
-                firstPageProgressIndicatorBuilder: (context) => const Center(
-                  child: ShimmerLoading(),
-                ),
-                newPageProgressIndicatorBuilder: (context) => const Center(
-                  child: ShimmerLoading(),
-                ),
-                noItemsFoundIndicatorBuilder: (context) => const Center(
-                  child: Text('No stories found.'),
+      body: BlocConsumer<HomeBloc, HomeState>(
+        listener: (context, state) {
+          // TODO: implement listener
+          log("state is ${state.toString()}");
+          if (state is HomeInitialState) {
+            context.read<HomeBloc>().add(FetchAllStoriesEvent());
+          }
+          if (state is HomeLoadedState) {
+            _homeBloc.add(FetchPageEvent());
+          }
+          if (state is HomePaginationLoadedState) {
+            pagingController.appendPage(
+              state.paginatedStory,
+              _homeBloc.currentPage,
+            );
+          }
+        },
+        builder: (context, state) {
+          if (state is HomeInitialState || state is HomeLoadingState) {
+            return const ShimmerLoading();
+          }
+          if (state is HomeErrorState) {
+            return Center(child: Text(state.errorMessage));
+          }
+          return PagedListView<int, Story>(
+            pagingController: pagingController,
+            builderDelegate: PagedChildBuilderDelegate<Story>(
+              newPageProgressIndicatorBuilder: (context) {
+                return const ShimmerLoading();
+              },
+              firstPageProgressIndicatorBuilder: (context) {
+                return const ShimmerLoading();
+              },
+              itemBuilder: (context, item, index) => ListTile(
+                title: Text(item.title),
+                leading: CachedNetworkImage(
+                  width: 50,
+                  imageUrl: item.ogImage ??
+                      "https://cdn.dribbble.com/users/3093/screenshots/797096/hn-logo-dribbble-shot.png",
+                  placeholder: (context, url) =>
+                      const CircularProgressIndicator(),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                 ),
               ),
-            );
-          } else {
-            return const Center(child: CircularProgressIndicator());
-          }
+            ),
+          );
         },
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _storyBloc.pagingController.dispose();
-    super.dispose();
   }
 }

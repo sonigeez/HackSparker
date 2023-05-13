@@ -1,53 +1,45 @@
-import 'dart:developer';
+import 'package:bloc/bloc.dart';
+import 'package:equatable/equatable.dart';
+import 'package:hacksparker/src/home/models/story.dart';
+import 'package:hacksparker/src/home/services/story_service.dart';
 
-import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
-import '../models/story.dart';
-import '../services/story_service.dart';
+part 'home_event.dart';
+part 'home_state.dart';
 
-class StoryBloc {
-  final StoryService _storyService = StoryService();
-  final PagingController<int, Story> _pagingController =
-      PagingController(firstPageKey: 0);
-  late List<int> _topStories;
+class HomeBloc extends Bloc<HomeEvent, HomeState> {
+  final StoryService storyService;
+  final List<int> storyIds = [];
+  int currentPage = 0;
+  final itemsPerPage = 1; // Set this to your desired page size
 
-  StoryBloc() {
-    init();
+  HomeBloc({required this.storyService}) : super(HomeInitialState()) {
+    on<FetchAllStoriesEvent>(fetchAllStoriesEvent);
+    on<FetchPageEvent>(fetchPageEvent);
   }
 
-  Future<void> init() async {
-    _topStories = await _storyService.fetchTopStories();
-    _pagingController.addPageRequestListener((pageKey) {
-      _fetchPage(pageKey);
-    });
-  }
-
-  Future<void> _fetchPage(int pageKey) async {
-    log('pageKey: $pageKey');
+  Future<void> fetchAllStoriesEvent(
+      FetchAllStoriesEvent event, Emitter<HomeState> emit) async {
     try {
-      final List<Story> fetchedStories = [];
-
-      int endIndex =
-          pageKey + 1 < _topStories.length ? pageKey + 1 : _topStories.length;
-
-      List<Future<Story>> storyFutures = [];
-      for (int i = pageKey; i < endIndex; i++) {
-        storyFutures.add(_storyService.fetchStory(_topStories[i]));
-      }
-
-      fetchedStories.addAll(await Future.wait(storyFutures));
-
-      final bool isLastPage = endIndex >= _topStories.length;
-
-      if (isLastPage) {
-        _pagingController.appendLastPage(fetchedStories);
-      } else {
-        final int nextPageKey = endIndex;
-        _pagingController.appendPage(fetchedStories, nextPageKey);
-      }
-    } catch (error) {
-      _pagingController.error = error;
+      storyIds.addAll(await storyService.fetchTopStories());
+      emit(const HomeLoadedState([]));
+    } catch (e) {
+      emit(HomeErrorState(e.toString()));
     }
   }
 
-  PagingController<int, Story> get pagingController => _pagingController;
+  Future<void> fetchPageEvent(
+      FetchPageEvent event, Emitter<HomeState> emit) async {
+    try {
+      emit(HomePaginationLoadingState());
+      final newItems = await Future.wait(storyIds
+          .skip(currentPage * itemsPerPage)
+          .take(itemsPerPage)
+          .map((id) => storyService.fetchStory(id)));
+
+      currentPage++;
+      emit(HomePaginationLoadedState(newItems));
+    } catch (e) {
+      emit(HomePaginationErrorState(e.toString()));
+    }
+  }
 }
