@@ -7,8 +7,8 @@ class ShimmerLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      baseColor: Colors.orangeAccent,
+      highlightColor: Colors.orange,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Row(
@@ -17,7 +17,7 @@ class ShimmerLoading extends StatelessWidget {
             Container(
               width: 44.0,
               height: 44.0,
-              color: Colors.white,
+              color: Colors.orange,
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.0),
@@ -29,7 +29,7 @@ class ShimmerLoading extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     height: 8.0,
-                    color: Colors.white,
+                    color: Colors.orange,
                   ),
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 4.0),
@@ -37,7 +37,7 @@ class ShimmerLoading extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     height: 8.0,
-                    color: Colors.white,
+                    color: Colors.orange,
                   ),
                 ],
               ),

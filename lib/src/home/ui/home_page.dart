@@ -7,6 +7,7 @@ import 'package:hacksparker/src/home/bloc/home_bloc.dart';
 import 'package:hacksparker/src/home/models/story.dart';
 import 'package:hacksparker/src/home/ui/widgets/shimmer_loading.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -19,7 +20,8 @@ class HomePageState extends State<HomePage> {
   PagingController<int, Story> pagingController =
       PagingController(firstPageKey: 0);
   late final HomeBloc _homeBloc;
-
+  late final RefreshController _refreshController =
+      RefreshController(initialRefresh: false);
   @override
   void initState() {
     super.initState();
@@ -36,11 +38,8 @@ class HomePageState extends State<HomePage> {
       appBar: AppBar(title: const Text('Hacker News Top Stories')),
       body: BlocConsumer<HomeBloc, HomeState>(
         listener: (context, state) {
-          // TODO: implement listener
           log("state is ${state.toString()}");
-          if (state is HomeInitialState) {
-            context.read<HomeBloc>().add(FetchAllStoriesEvent());
-          }
+
           if (state is HomeLoadedState) {
             _homeBloc.add(FetchPageEvent());
           }
@@ -58,24 +57,35 @@ class HomePageState extends State<HomePage> {
           if (state is HomeErrorState) {
             return Center(child: Text(state.errorMessage));
           }
-          return PagedListView<int, Story>(
-            pagingController: pagingController,
-            builderDelegate: PagedChildBuilderDelegate<Story>(
-              newPageProgressIndicatorBuilder: (context) {
-                return const ShimmerLoading();
-              },
-              firstPageProgressIndicatorBuilder: (context) {
-                return const ShimmerLoading();
-              },
-              itemBuilder: (context, item, index) => ListTile(
-                title: Text(item.title),
-                leading: CachedNetworkImage(
-                  width: 50,
-                  imageUrl: item.ogImage ??
-                      "https://cdn.dribbble.com/users/3093/screenshots/797096/hn-logo-dribbble-shot.png",
-                  placeholder: (context, url) =>
-                      const CircularProgressIndicator(),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+          return SmartRefresher(
+            controller: _refreshController,
+            enablePullDown: true,
+            enablePullUp: true,
+            header: const WaterDropHeader(),
+            onRefresh: () {
+              _homeBloc.add(FetchAllStoriesEvent());
+              _refreshController.refreshCompleted();
+            },
+            child: PagedListView<int, Story>(
+              pagingController: pagingController,
+              builderDelegate: PagedChildBuilderDelegate<Story>(
+                newPageProgressIndicatorBuilder: (context) {
+                  return const ShimmerLoading();
+                },
+                firstPageProgressIndicatorBuilder: (context) {
+                  return const ShimmerLoading();
+                },
+                itemBuilder: (context, item, index) => ListTile(
+                  title: Text(item.title),
+                  leading: CachedNetworkImage(
+                    width: 50,
+                    imageUrl: item.ogImage ??
+                        "https://cdn.dribbble.com/users/3093/screenshots/797096/hn-logo-dribbble-shot.png",
+                    placeholder: (context, url) =>
+                        const CircularProgressIndicator(),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.error),
+                  ),
                 ),
               ),
             ),
